@@ -1,5 +1,23 @@
-project(VisionCamera)
 cmake_minimum_required(VERSION 3.9.0)
+project(VisionCamera)
+
+# === Begin manual worklets-core integration (Issue #3054) ===
+if (ENABLE_FRAME_PROCESSORS)
+  add_subdirectory(
+    # Path from .../react-native-vision-camera/package/android
+    # to .../react-native-worklets-core/android 
+    # (this assumes react-native-worklets-core will be a sibling in node_modules when your project uses this fork)
+    ${PROJECT_SOURCE_DIR}/../../../react-native-worklets-core/android 
+    rnworklets-core-build
+  )
+
+  target_link_libraries(
+    VisionCamera
+    PRIVATE
+    rnworklets # Target name from react-native-worklets-core's CMakeLists
+  )
+endif()
+# === End manual worklets-core integration ===
 
 set(PACKAGE_NAME "VisionCamera")
 set(BUILD_DIR ${CMAKE_SOURCE_DIR}/build)
@@ -80,6 +98,12 @@ endif()
 message("VisionCamera: Frame Processors: ${ENABLE_FRAME_PROCESSORS}!")
 if (ENABLE_FRAME_PROCESSORS)
     message("VisionCamera: Linking react-native-worklets...")
+    # Note: The find_package call below might become redundant if our add_subdirectory
+    # approach works for Debug builds, but it doesn't hurt to leave it for Release
+    # builds or as a fallback if ENABLE_FRAME_PROCESSORS is true but our
+    # manual integration somehow doesn't satisfy all conditions.
+    # The main purpose of our manual block is to ensure rnworklets is built and available
+    # for linking, especially for Debug.
     find_package(react-native-worklets-core REQUIRED CONFIG)
     target_link_libraries(
             ${PACKAGE_NAME}
