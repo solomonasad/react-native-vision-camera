@@ -80,6 +80,9 @@
     "url": "https://github.com/mrousavy/react-native-vision-camera/issues"
   },
   "homepage": "https://react-native-vision-camera.com/",
+  "expo": {
+    "plugin": "./app.plugin.js"
+  },
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
