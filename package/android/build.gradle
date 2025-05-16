@@ -75,6 +75,8 @@ logger.warn("[VisionCamera] If you enjoy using VisionCamera, please consider spo
 
 def nodeModules = findNodeModules(projectDir)
 logger.warn("[VisionCamera] node_modules found at $nodeModules")
+// ADDED THIS LINE
+def reactNativeDir = Paths.get(nodeModules.toString(), "react-native").toString()
 
 def enableFrameProcessors = safeExtGetBool('VisionCamera_enableFrameProcessors', true)
 logger.warn("[VisionCamera] VisionCamera_enableFrameProcessors is set to $enableFrameProcessors!")
@@ -133,6 +135,9 @@ android {
         cppFlags "-O2 -frtti -fexceptions -Wall -Wno-unused-variable -fstack-protector-all"
         arguments "-DANDROID_STL=c++_shared",
                 "-DNODE_MODULES_DIR=${nodeModules}",
+                // ADDED THESE NEXT TWO LINES
+                "-DREACT_NATIVE_DIR=${reactNativeDir}",
+                "-DJS_RUNTIME=hermes",
                 "-DENABLE_FRAME_PROCESSORS=${enableFrameProcessors ? "ON" : "OFF"}"
         abiFilters (*reactNativeArchitectures())
       }
