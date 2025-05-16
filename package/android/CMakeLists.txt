@@ -7,7 +7,7 @@ if (ENABLE_FRAME_PROCESSORS)
     # Path from .../react-native-vision-camera/package/android
     # to .../react-native-worklets-core/android 
     # (this assumes react-native-worklets-core will be a sibling in node_modules when your project uses this fork)
-    ${PROJECT_SOURCE_DIR}/../../../react-native-worklets-core/android 
+    ${PROJECT_SOURCE_DIR}/../../react-native-worklets-core/android 
     rnworklets-core-build
   )
 
