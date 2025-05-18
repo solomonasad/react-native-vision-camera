@@ -95,17 +95,6 @@ android {
     targetSdkVersion safeExtGet('targetSdkVersion', 34)
     buildConfigField "boolean", "ENABLE_FRAME_PROCESSORS", enableFrameProcessors.toString()
 
-    externalNativeBuild {
-      cmake {
-        cppFlags "-O2 -frtti -fexceptions -Wall -Wno-unused-variable -fstack-protector-all"
-        arguments "-DNODE_MODULES_DIR=$nodeModules",
-                  "-DREACT_NATIVE_DIR=$reactNativeDir",
-                  "-DJS_RUNTIME=hermes", // Default to Hermes for release
-                  "-DENABLE_FRAME_PROCESSORS=${enableFrameProcessors ? 'ON' : 'OFF'}",
-                  "-Dhermes-engine_DIR=${reactNativeDir}/ReactAndroid/hermes-engine/build/hermes/" // Corrected path for Hermes
-      }
-    }
-
     ndk {
       abiFilters(*reactNativeArchitectures())
     }
@@ -116,18 +105,30 @@ android {
       // No special signing config for debug
       externalNativeBuild {
         cmake {
-           arguments "-DNODE_MODULES_DIR=$nodeModules", // Repeat common args or ensure they inherit correctly
+           cppFlags "-O0 -frtti -fexceptions -Wall -Wno-unused-variable -fstack-protector-all" // Example: Debug specific flags
+           arguments.clear() // Ensure no carry-over
+           arguments "-DNODE_MODULES_DIR=$nodeModules",
                      "-DREACT_NATIVE_DIR=$reactNativeDir",
                      "-DJS_RUNTIME=jsc", // Override to JSC for debug
-                     "-DENABLE_FRAME_PROCESSORS=${enableFrameProcessors ? 'ON' : 'OFF'}",
-                     "-Dhermes-engine_DIR=${reactNativeDir}/ReactAndroid/hermes-engine/build/hermes/" // Will be ignored by worklets-core if JS_RUNTIME is jsc
+                     "-DENABLE_FRAME_PROCESSORS=${enableFrameProcessors ? 'ON' : 'OFF'}"
+                     // No HERMES_ENGINE_DIR needed for JSC
         }
       }
     }
     release {
       minifyEnabled false
-      // Hermes is already set as the JS_RUNTIME in defaultConfig, no override needed.
       // Signing configs, ProGuard rules, etc., would go here for a release build.
+      externalNativeBuild {         // <-- ADD/MODIFY THIS BLOCK
+        cmake {                     // <-- ADD/MODIFY THIS BLOCK
+           cppFlags "-O2 -frtti -fexceptions -Wall -Wno-unused-variable -fstack-protector-all" // Example: Release specific flags
+           arguments.clear()        // <-- ADD/MODIFY THIS BLOCK
+           arguments "-DNODE_MODULES_DIR=$nodeModules",                     // <-- ADD/MODIFY THIS BLOCK
+                     "-DREACT_NATIVE_DIR=$reactNativeDir",                  // <-- ADD/MODIFY THIS BLOCK
+                     "-DJS_RUNTIME=hermes",                                 // <-- ADD/MODIFY THIS BLOCK
+                     "-DENABLE_FRAME_PROCESSORS=${enableFrameProcessors ? 'ON' : 'OFF'}",          // <-- ADD/MODIFY THIS BLOCK
+                     "-Dhermes-engine_DIR=${reactNativeDir}/ReactAndroid/hermes-engine/build/hermes/" // <-- ADD/MODIFY THIS BLOCK
+        }                           // <-- ADD/MODIFY THIS BLOCK
+      }                             // <-- ADD/MODIFY THIS BLOCK
     }
   }
 
