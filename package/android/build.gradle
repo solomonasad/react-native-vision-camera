@@ -182,7 +182,10 @@ dependencies {
   implementation "androidx.camera:camera-view:${camerax_version}"
   implementation "androidx.camera:camera-extensions:${camerax_version}"
 
-  implementation "androidx.renderscript:renderscript-toolkit:1.0.0"
+  // Java utility for converting YUV to RGB
+  // https://developer.android.com/reference/android/renderscript/ScriptIntrinsicYuvToRGB
+  // implementation "androidx.renderscript:renderscript-toolkit:1.0.0" // <-- COMMENTED OUT
+
   implementation files("$nodeModules/react-native/ReactAndroid/src/main/jni/first-party/fbjni/jni.h")
 }
 
