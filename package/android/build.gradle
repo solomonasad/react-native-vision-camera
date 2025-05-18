@@ -16,7 +16,8 @@ buildscript {
   }
 
   dependencies {
-    classpath "com.android.tools.build:gradle:8.7.2"
+    // Using the AGP version you had, as this is a library's build.gradle
+    classpath "com.android.tools.build:gradle:8.7.2" // Reverted to your original, ensure this is what you intend for the fork
     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
   }
 }
@@ -75,7 +76,6 @@ logger.warn("[VisionCamera] If you enjoy using VisionCamera, please consider spo
 
 def nodeModules = findNodeModules(projectDir)
 logger.warn("[VisionCamera] node_modules found at $nodeModules")
-// ADDED THIS LINE
 def reactNativeDir = Paths.get(nodeModules.toString(), "react-native").toString()
 
 def enableFrameProcessors = safeExtGetBool('VisionCamera_enableFrameProcessors', true)
@@ -123,7 +123,7 @@ android {
   }
 
   defaultConfig {
-    minSdkVersion safeExtGet("minSdkVersion", 21)
+    minSdkVersion safeExtGet("minSdkVersion", 26) // Updated to 26 as per our previous fixes
     compileSdkVersion safeExtGet("compileSdkVersion", 34)
     targetSdkVersion safeExtGet("targetSdkVersion", 34)
     versionCode 1
@@ -136,9 +136,9 @@ android {
         arguments "-DANDROID_STL=c++_shared",
                 "-DANDROID_PLATFORM=android-26", // Explicitly set Android platform for CMake
                 "-DNODE_MODULES_DIR=${nodeModules}",
-                // These two lines were added previously
                 "-DREACT_NATIVE_DIR=${reactNativeDir}",
                 "-DJS_RUNTIME=hermes",
+                "-Dhermes-engine_DIR=${rootProject.projectDir}/../node_modules/react-native/ReactAndroid/hermes-engine/build/hermes/", // <- THE MODIFIED/ADDED LINE
                 "-DENABLE_FRAME_PROCESSORS=${enableFrameProcessors ? "ON" : "OFF"}"
         abiFilters (*reactNativeArchitectures())
       }

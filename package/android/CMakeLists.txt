@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.9.0)
 project(VisionCamera)
 
+# === Hermes SDK Configuration (Added to find hermes-engine) ===
+# Point to the hermes-engine CMake files installed in node_modules
+set(hermes-engine_DIR
+    "${PROJECT_SOURCE_DIR}/../../hermes-engine/android/cmake"
+    CACHE STRING "Path to hermes-engine CMake configurations")
+list(APPEND CMAKE_PREFIX_PATH "${hermes-engine_DIR}")
+# === End Hermes SDK Configuration ===
+
 # === Begin manual worklets-core integration (Issue #3054) ===
 if (ENABLE_FRAME_PROCESSORS)
   add_subdirectory(
