@@ -182,6 +182,9 @@ dependencies {
   implementation "androidx.camera:camera-view:${camerax_version}"
   implementation "androidx.camera:camera-extensions:${camerax_version}"
 
+  // ML Kit for Barcode Scanning (if applicable)
+  implementation "com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.0"
+
   // Java utility for converting YUV to RGB
   // https://developer.android.com/reference/android/renderscript/ScriptIntrinsicYuvToRGB
   // implementation "androidx.renderscript:renderscript-toolkit:1.0.0" // <-- COMMENTED OUT
