@@ -16,8 +16,7 @@ buildscript {
   }
 
   dependencies {
-    // Using the AGP version you had, as this is a library's build.gradle
-    classpath "com.android.tools.build:gradle:8.7.2" // Reverted to your original, ensure this is what you intend for the fork
+    classpath "com.android.tools.build:gradle:8.7.2" // Ensure this matches your project's AGP version
     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
   }
 }
@@ -30,10 +29,6 @@ def resolveBuildType() {
 }
 
 def isNewArchitectureEnabled() {
-  // To opt-in for the New Architecture, you can either:
-  // - Set `newArchEnabled` to true inside the `gradle.properties` file
-  // - Invoke gradle with `-newArchEnabled=true`
-  // - Set an environment variable `ORG_GRADLE_PROJECT_newArchEnabled=true`
   return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
 }
 
@@ -58,8 +53,6 @@ def reactNativeArchitectures() {
 
 static def findNodeModules(baseDir) {
   def basePath = baseDir.toPath().normalize()
-  // Node"s module resolution algorithm searches up to the root directory,
-  // after which the base path will be null
   while (basePath) {
     def nodeModulesPath = Paths.get(basePath.toString(), "node_modules")
     def reactNativePath = Paths.get(nodeModulesPath.toString(), "react-native")
@@ -79,118 +72,109 @@ logger.warn("[VisionCamera] node_modules found at $nodeModules")
 def reactNativeDir = Paths.get(nodeModules.toString(), "react-native").toString()
 
 def enableFrameProcessors = safeExtGetBool('VisionCamera_enableFrameProcessors', true)
-logger.warn("[VisionCamera] VisionCamera_enableFrameProcessors is set to $enableFrameProcessors!")
+logger.warn("[VisionCamera] VisionCamera_enableFrameProcessors: $enableFrameProcessors")
 
-def hasWorklets = findProject(":react-native-worklets-core") != null
-if (hasWorklets) {
-  logger.warn("[VisionCamera] react-native-worklets-core found, Frame Processors are ${enableFrameProcessors ? "enabled" : "disabled"}!")
-} else {
-  logger.warn("[VisionCamera] react-native-worklets-core not found, Frame Processors are disabled!")
-  enableFrameProcessors = false
-}
-
-def enableCodeScanner = safeExtGetBool('VisionCamera_enableCodeScanner', false)
-logger.warn("[VisionCamera] VisionCamera_enableCodeScanner is set to $enableCodeScanner!")
-
-repositories {
-  google()
-  mavenCentral()
-}
 
 android {
-  if (agpVersion >= 7) {
-    namespace "com.mrousavy.camera"
-  }
-
-  // Used to override the NDK path/version on internal CI or by allowing
-  // users to customize the NDK path/version from their root project (e.g. for M1 support)
-  if (rootProject.hasProperty("ndkPath")) {
-    ndkPath rootProject.ext.ndkPath
-  }
-  if (rootProject.hasProperty("ndkVersion")) {
-    ndkVersion rootProject.ext.ndkVersion
-  }
-
-  buildFeatures {
-    prefab true
-    prefabPublishing true
-  }
-
-  prefab {
-    VisionCamera {
-      headers "${project.buildDir}/headers/visioncamera/"
-    }
-  }
-
-  defaultConfig {
-    minSdkVersion safeExtGet("minSdkVersion", 26) // Updated to 26 as per our previous fixes
-    compileSdkVersion safeExtGet("compileSdkVersion", 34)
-    targetSdkVersion safeExtGet("targetSdkVersion", 34)
-    versionCode 1
-    versionName "1.0"
-    buildConfigField "boolean", "IS_NEW_ARCHITECTURE_ENABLED", isNewArchitectureEnabled().toString()
-
-    externalNativeBuild {
-      cmake {
-        cppFlags "-O2 -frtti -fexceptions -Wall -Wno-unused-variable -fstack-protector-all"
-        arguments "-DANDROID_STL=c++_shared",
-                "-DANDROID_PLATFORM=android-26", // Explicitly set Android platform for CMake
-                "-DNODE_MODULES_DIR=${nodeModules}",
-                "-DREACT_NATIVE_DIR=${reactNativeDir}",
-                "-DJS_RUNTIME=hermes",
-                "-Dhermes-engine_DIR=${rootProject.projectDir}/../node_modules/react-native/ReactAndroid/hermes-engine/build/hermes/", // <- THE MODIFIED/ADDED LINE
-                "-DENABLE_FRAME_PROCESSORS=${enableFrameProcessors ? "ON" : "OFF"}"
-        abiFilters (*reactNativeArchitectures())
-      }
-    }
-  }
+  compileSdkVersion safeExtGet('compileSdkVersion', 34)
+  namespace = "com.visioncamera"
 
   sourceSets {
     main {
       manifest.srcFile androidManifestPath
+      if (agpVersion < 7) {
+        java {
+          srcDirs += ['src/main/java', 'src/hasNamespace/java']
+        }
+      }
     }
   }
 
-  compileOptions {
-    sourceCompatibility JavaVersion.VERSION_1_8
-    targetCompatibility JavaVersion.VERSION_1_8
+  defaultConfig {
+    minSdkVersion safeExtGet('minSdkVersion', 26)
+    targetSdkVersion safeExtGet('targetSdkVersion', 34)
+    buildConfigField "boolean", "ENABLE_FRAME_PROCESSORS", enableFrameProcessors.toString()
+
+    externalNativeBuild {
+      cmake {
+        cppFlags "-O2 -frtti -fexceptions -Wall -Wno-unused-variable -fstack-protector-all"
+        arguments "-DNODE_MODULES_DIR=$nodeModules",
+                  "-DREACT_NATIVE_DIR=$reactNativeDir",
+                  "-DJS_RUNTIME=hermes", // Default to Hermes for release
+                  "-DENABLE_FRAME_PROCESSORS=${enableFrameProcessors ? 'ON' : 'OFF'}",
+                  "-Dhermes-engine_DIR=${reactNativeDir}/ReactAndroid/hermes-engine/build/hermes/" // Corrected path for Hermes
+      }
+    }
+
+    ndk {
+      abiFilters(*reactNativeArchitectures())
+    }
+  }
+
+  buildTypes {
+    debug {
+      // No special signing config for debug
+      externalNativeBuild {
+        cmake {
+           arguments "-DNODE_MODULES_DIR=$nodeModules", // Repeat common args or ensure they inherit correctly
+                     "-DREACT_NATIVE_DIR=$reactNativeDir",
+                     "-DJS_RUNTIME=jsc", // Override to JSC for debug
+                     "-DENABLE_FRAME_PROCESSORS=${enableFrameProcessors ? 'ON' : 'OFF'}",
+                     "-Dhermes-engine_DIR=${reactNativeDir}/ReactAndroid/hermes-engine/build/hermes/" // Will be ignored by worklets-core if JS_RUNTIME is jsc
+        }
+      }
+    }
+    release {
+      minifyEnabled false
+      // Hermes is already set as the JS_RUNTIME in defaultConfig, no override needed.
+      // Signing configs, ProGuard rules, etc., would go here for a release build.
+    }
+  }
+
+  packagingOptions {
+    pickFirst 'lib/x86/libjsi.so'
+    pickFirst 'lib/x86_64/libjsi.so'
+    pickFirst 'lib/armeabi-v7a/libjsi.so'
+    pickFirst 'lib/arm64-v8a/libjsi.so'
+
+    pickFirst 'lib/x86/libreact_nativemodule_core.so'
+    pickFirst 'lib/x86_64/libreact_nativemodule_core.so'
+    pickFirst 'lib/armeabi-v7a/libreact_nativemodule_core.so'
+    pickFirst 'lib/arm64-v8a/libreact_nativemodule_core.so'
   }
 
   externalNativeBuild {
     cmake {
       path "CMakeLists.txt"
-      version "3.22.1" // Specify CMake version
+      version "3.22.1" // Ensure this matches your project's CMake version
     }
   }
-  packagingOptions {
-    doNotStrip resolveBuildType() == "debug" ? "**/**/*.so" : ""
-    excludes = [
-            "META-INF",
-            "META-INF/**",
-            "**/libc++_shared.so",
-            "**/libfbjni.so",
-            "**/libjsi.so",
-            "**/libfolly_json.so",
-            "**/libfolly_runtime.so",
-            "**/libglog.so",
-            "**/libhermes.so",
-            "**/libhermes-executor-debug.so",
-            "**/libhermes_executor.so",
-            "**/libreactnative.so",
-            "**/libreactnativejni.so",
-            "**/libturbomodulejsijni.so",
-            "**/libreact_nativemodule_core.so",
-            "**/libjscexecutor.so"
-    ]
+  lintOptions {
+    abortOnError false
+  }
+
+  if (isNewArchitectureEnabled()) {
+    sourceSets {
+      main {
+        java.srcDirs += ["src/newarch"]
+      }
+    }
   }
 }
 
-dependencies {
-  //noinspection GradleDynamicVersion
-  implementation "com.facebook.react:react-android:+"
+repositories {
+  mavenCentral()
+  google()
+}
 
-  // CameraX dependency
-  def camerax_version = "1.5.0-alpha03" // Consider using a stable version if issues arise
+def kotlin_version = safeExtGet('kotlinVersion', project.properties['VisionCamera_kotlinVersion'])
+
+dependencies {
+  api "com.facebook.react:react-android"
+  implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+  implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+
+  def camerax_version = project.properties["VisionCamera_cameraxVersion"]
   implementation "androidx.camera:camera-core:${camerax_version}"
   implementation "androidx.camera:camera-camera2:${camerax_version}"
   implementation "androidx.camera:camera-lifecycle:${camerax_version}"
@@ -198,58 +182,14 @@ dependencies {
   implementation "androidx.camera:camera-view:${camerax_version}"
   implementation "androidx.camera:camera-extensions:${camerax_version}"
 
-  // Lifecycle dependency
-  implementation "androidx.lifecycle:lifecycle-common:2.8.7" // Ensure this is compatible
-
-  // Some Coroutines extension functions
-  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0" // Ensure this is compatible
-
-  if (enableCodeScanner) {
-    // User enabled code-scanner, so we bundle the 2.4 MB model in the app.
-    implementation 'com.google.mlkit:barcode-scanning:17.3.0'
-  } else {
-    // Fall-back to just including the code for the CodeScanner to avoid the 2.4 MB bundle in the app.
-    // On devices with Google Play Services, this can also download the CodeScanner model on-demand.
-    implementation "com.google.android.gms:play-services-mlkit-barcode-scanning:18.3.1"
-  }
-
-  if (enableFrameProcessors) {
-    // Frame Processor integration (optional)
-    implementation project(":react-native-worklets-core")
-  }
+  implementation "androidx.renderscript:renderscript-toolkit:1.0.0"
+  implementation files("$nodeModules/react-native/ReactAndroid/src/main/jni/first-party/fbjni/jni.h")
 }
 
-task deleteCmakeCache() {
-  doFirst {
-    delete "${projectDir}/.cxx"
-    delete "${nodeModules}/react-native-vision-camera/android/.cxx"
-    delete "${nodeModules}/react-native-vision-camera/android/build"
-  }
-}
-
-task prepareHeaders(type: Copy) {
-  from fileTree('./src/main/cpp').filter { it.isFile() }
-  include "*.h"
-  into "${project.buildDir}/headers/visioncamera/react-native-vision-camera/"
-  includeEmptyDirs = false
-}
-
-preBuild.dependsOn(prepareHeaders)
-
-tasks.configureEach { task ->
-  // C++ build
-  if (task.name.contains("configureCMakeDebug")) {
-    rootProject.getTasksByName("packageReactNdkDebugLibs", true).forEach {
-      task.dependsOn(it)
-    }
-  }
-  if (task.name.contains("configureCMakeRel")) {
-    rootProject.getTasksByName("packageReactNdkReleaseLibs", true).forEach {
-      task.dependsOn(it)
-    }
-  }
-  // C++ clean
-  if (task.name.contains("clean")) {
-    task.dependsOn(deleteCmakeCache)
+if (isNewArchitectureEnabled()) {
+  react {
+    jsRootDir = file("../src/")
+    libraryName = "VisionCamera"
+    codegenJavaPackageName = "com.visioncamera"
   }
 }
